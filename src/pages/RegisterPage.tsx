@@ -1,35 +1,52 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { getErrorMessage } from '@/lib/utils';
 import Spinner from '@/components/Spinner';
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { register, user, loading } = useAuth();
   const navigate = useNavigate();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [form, setForm] = useState({
+    username: '',
+    email: '',
+    first_name: '',
+    last_name: '',
+    password: '',
+    password_confirm: '',
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password !== confirm) {
+    // The backend validates this too; checking here saves a round trip.
+    if (form.password !== form.password_confirm) {
       setError('Passwords do not match');
       return;
     }
     setBusy(true);
     setError('');
     try {
-      await register(name.trim(), email.trim(), password);
+      await register({
+        username: form.username.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        password_confirm: form.password_confirm,
+        first_name: form.first_name.trim(),
+        last_name: form.last_name.trim(),
+      });
       navigate('/');
     } catch (err) {
       setError(getErrorMessage(err, 'Could not create account'));
       setBusy(false);
     }
   }
+
+  if (!loading && user) return <Navigate to="/" replace />;
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-8">
@@ -42,51 +59,91 @@ export default function RegisterPage() {
 
         <form onSubmit={handleSubmit} className="card space-y-4 p-6">
           <div>
-            <label className="label" htmlFor="name">Full name</label>
+            <label className="label" htmlFor="username">
+              Username
+            </label>
             <input
-              id="name"
+              id="username"
               required
+              autoComplete="username"
               className="input"
-              placeholder="Jane Doe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              placeholder="jdoe"
+              value={form.username}
+              onChange={update('username')}
             />
           </div>
+
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="label" htmlFor="first_name">
+                First name
+              </label>
+              <input
+                id="first_name"
+                className="input"
+                placeholder="Jane"
+                value={form.first_name}
+                onChange={update('first_name')}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="label" htmlFor="last_name">
+                Last name
+              </label>
+              <input
+                id="last_name"
+                className="input"
+                placeholder="Doe"
+                value={form.last_name}
+                onChange={update('last_name')}
+              />
+            </div>
+          </div>
+
           <div>
-            <label className="label" htmlFor="email">Email</label>
+            <label className="label" htmlFor="email">
+              Email
+            </label>
             <input
               id="email"
               type="email"
               required
+              autoComplete="email"
               className="input"
               placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={form.email}
+              onChange={update('email')}
             />
           </div>
           <div>
-            <label className="label" htmlFor="password">Password</label>
+            <label className="label" htmlFor="password">
+              Password
+            </label>
             <input
               id="password"
               type="password"
               required
               minLength={8}
+              autoComplete="new-password"
               className="input"
               placeholder="At least 8 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={form.password}
+              onChange={update('password')}
             />
           </div>
           <div>
-            <label className="label" htmlFor="confirm">Confirm password</label>
+            <label className="label" htmlFor="password_confirm">
+              Confirm password
+            </label>
             <input
-              id="confirm"
+              id="password_confirm"
               type="password"
               required
+              autoComplete="new-password"
               className="input"
               placeholder="Re-enter your password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
+              value={form.password_confirm}
+              onChange={update('password_confirm')}
             />
           </div>
 
@@ -95,6 +152,11 @@ export default function RegisterPage() {
           <button type="submit" className="btn-primary w-full" disabled={busy}>
             {busy ? <Spinner className="h-4 w-4" /> : 'Create account'}
           </button>
+
+          <p className="text-center text-xs text-slate-500">
+            New accounts start with the <strong>Write Only</strong> role — you can upload,
+            download and share your own files. An admin can change your role later.
+          </p>
 
           <p className="text-center text-sm text-slate-500">
             Already have an account?{' '}

@@ -1,90 +1,100 @@
-import { cn, formatBytes, formatDate } from '@/lib/utils';
-import type { FileItem, ScanStatus } from '@/types';
+import { formatBytes, formatDate } from '@/lib/utils';
+import type { StoredFile } from '@/types';
 
 interface Props {
-  file: FileItem;
-  onOpen?: (file: FileItem) => void;
-  onDownload?: (file: FileItem) => void;
-  onShare?: (file: FileItem) => void;
-  onDelete?: (file: FileItem) => void;
+  file: StoredFile;
+  /** Username of the signed-in user, to tell owned files from shared ones. */
+  currentUsername: string;
+  /** Whether this user may delete/share it — owner or system admin. */
+  canManage: boolean;
+  onDownload: (file: StoredFile) => void;
+  onShare: (file: StoredFile) => void;
+  onDelete: (file: StoredFile) => void;
 }
 
-const scanStyles: Record<ScanStatus, string> = {
-  clean: 'bg-green-100 text-green-700',
-  pending: 'bg-amber-100 text-amber-700',
-  infected: 'bg-red-100 text-red-700',
-};
-
-function FileIcon({ file }: { file: FileItem }) {
-  const emoji = file.type === 'folder' ? '📁' : '📄';
-  return <span className="text-3xl leading-none">{emoji}</span>;
+/** Rough icon from the MIME type the backend recorded at upload. */
+function iconFor(mimeType: string): string {
+  if (mimeType.startsWith('image/')) return '🖼️';
+  if (mimeType.startsWith('video/')) return '🎬';
+  if (mimeType.startsWith('audio/')) return '🎵';
+  if (mimeType.includes('pdf')) return '📕';
+  if (mimeType.includes('zip') || mimeType.includes('compressed')) return '🗜️';
+  if (mimeType.includes('sheet') || mimeType.includes('excel') || mimeType.includes('csv')) {
+    return '📊';
+  }
+  if (mimeType.startsWith('text/') || mimeType.includes('document')) return '📝';
+  return '📄';
 }
 
-/** A single row/card representing a file or folder in the file manager. */
-export default function FileCard({ file, onOpen, onDownload, onShare, onDelete }: Props) {
-  const isFolder = file.type === 'folder';
+/** A single card representing an uploaded file in the file manager. */
+export default function FileCard({
+  file,
+  currentUsername,
+  canManage,
+  onDownload,
+  onShare,
+  onDelete,
+}: Props) {
+  const isOwn = file.owner === currentUsername;
 
   return (
     <div className="card flex flex-col gap-3 p-4 transition-shadow hover:shadow-md">
       <div className="flex items-start gap-3">
-        <button
-          onClick={() => onOpen?.(file)}
-          className="flex flex-1 items-start gap-3 text-left"
-        >
-          <FileIcon file={file} />
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-medium text-slate-900">{file.name}</p>
-            <p className="text-xs text-slate-500">
-              {isFolder ? 'Folder' : formatBytes(file.size)} · {formatDate(file.updatedAt)}
-            </p>
-          </div>
-        </button>
+        <span className="text-3xl leading-none">{iconFor(file.file_type)}</span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium text-slate-900" title={file.original_name}>
+            {file.original_name}
+          </p>
+          <p className="text-xs text-slate-500">
+            {formatBytes(file.file_size)} · {formatDate(file.uploaded_at)}
+          </p>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        {file.encrypted && (
+        {/* Set by the encryption layer server-side, never by this client. */}
+        {file.is_encrypted && (
           <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
             🔒 Encrypted
           </span>
         )}
-        {!isFolder && (
-          <span
-            className={cn(
-              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
-              scanStyles[file.scanStatus],
-            )}
-          >
-            {file.scanStatus === 'pending' ? '⏳ Scanning' : `Scan: ${file.scanStatus}`}
+        {!isOwn && (
+          <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+            👥 Shared by {file.owner}
           </span>
         )}
-        {file.sharedWith.length > 0 && (
+        {file.folder_name && (
           <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-            👥 Shared ({file.sharedWith.length})
+            📁 {file.folder_name}
           </span>
         )}
       </div>
 
-      <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
-        {!isFolder && (
-          <button
-            onClick={() => onDownload?.(file)}
-            className="text-sm font-medium text-blue-600 hover:text-blue-700"
-          >
-            Download
-          </button>
+      <div className="flex items-center gap-3 border-t border-slate-100 pt-3">
+        <button
+          onClick={() => onDownload(file)}
+          className="text-sm font-medium text-blue-600 hover:text-blue-700"
+        >
+          Download
+        </button>
+        {/* Sharing and deleting are owner/admin-only server-side, so the
+            buttons only appear for users who would actually be allowed. */}
+        {canManage && (
+          <>
+            <button
+              onClick={() => onShare(file)}
+              className="text-sm font-medium text-slate-600 hover:text-slate-900"
+            >
+              Share
+            </button>
+            <button
+              onClick={() => onDelete(file)}
+              className="ml-auto text-sm font-medium text-red-600 hover:text-red-700"
+            >
+              Delete
+            </button>
+          </>
         )}
-        <button
-          onClick={() => onShare?.(file)}
-          className="text-sm font-medium text-slate-600 hover:text-slate-900"
-        >
-          Share
-        </button>
-        <button
-          onClick={() => onDelete?.(file)}
-          className="ml-auto text-sm font-medium text-red-600 hover:text-red-700"
-        >
-          Delete
-        </button>
       </div>
     </div>
   );

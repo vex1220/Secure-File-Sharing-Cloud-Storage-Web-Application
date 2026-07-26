@@ -1,30 +1,39 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import { USE_MOCK } from '@/api/client';
+import { checkHealth } from '@/api/client';
 import { getErrorMessage } from '@/lib/utils';
 import Spinner from '@/components/Spinner';
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, user, loading } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [backendUp, setBackendUp] = useState<boolean | null>(null);
+
+  // Surface a dead backend up front — otherwise the first failed login looks
+  // like bad credentials when it is really a connection problem.
+  useEffect(() => {
+    checkHealth().then(setBackendUp);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError('');
     try {
-      await login(email.trim(), password);
+      await login(username.trim(), password);
       navigate('/');
     } catch (err) {
-      setError(getErrorMessage(err, 'Invalid email or password'));
+      setError(getErrorMessage(err, 'Invalid username or password'));
       setBusy(false);
     }
   }
+
+  if (!loading && user) return <Navigate to="/" replace />;
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
@@ -37,23 +46,28 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="card space-y-4 p-6">
           <div>
-            <label className="label" htmlFor="email">Email</label>
+            <label className="label" htmlFor="username">
+              Username
+            </label>
             <input
-              id="email"
-              type="email"
+              id="username"
               required
+              autoComplete="username"
               className="input"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
             />
           </div>
           <div>
-            <label className="label" htmlFor="password">Password</label>
+            <label className="label" htmlFor="password">
+              Password
+            </label>
             <input
               id="password"
               type="password"
               required
+              autoComplete="current-password"
               className="input"
               placeholder="••••••••"
               value={password}
@@ -75,11 +89,10 @@ export default function LoginPage() {
           </p>
         </form>
 
-        {USE_MOCK && (
-          <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-xs text-amber-800">
-            <strong>Demo mode</strong> — any password works. Try{' '}
-            <code className="font-mono">admin@demo.com</code> or{' '}
-            <code className="font-mono">user@demo.com</code>.
+        {backendUp === false && (
+          <div className="mt-4 rounded-lg bg-red-50 p-3 text-center text-xs text-red-800">
+            <strong>Backend unreachable.</strong> Start the API with{' '}
+            <code className="font-mono">python manage.py runserver</code> on port 8000.
           </div>
         )}
       </div>

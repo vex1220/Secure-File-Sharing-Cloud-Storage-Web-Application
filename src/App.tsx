@@ -5,6 +5,7 @@ import LoginPage from '@/pages/LoginPage';
 import RegisterPage from '@/pages/RegisterPage';
 import DashboardPage from '@/pages/DashboardPage';
 import FilesPage from '@/pages/FilesPage';
+import ActivityPage from '@/pages/ActivityPage';
 import AdminPage from '@/pages/AdminPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 
@@ -20,9 +21,10 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/files" element={<FilesPage />} />
+          <Route path="/activity" element={<ActivityPage />} />
 
-          {/* Admin-only routes (RBAC) */}
-          <Route element={<ProtectedRoute role="ADMIN" />}>
+          {/* Admin-only route (RBAC): the user list and full audit log. */}
+          <Route element={<ProtectedRoute roles={['admin']} />}>
             <Route path="/admin" element={<AdminPage />} />
           </Route>
         </Route>

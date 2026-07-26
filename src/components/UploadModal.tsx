@@ -3,16 +3,25 @@ import Modal from '@/components/Modal';
 import Spinner from '@/components/Spinner';
 import { uploadFile } from '@/api/files';
 import { formatBytes, getErrorMessage } from '@/lib/utils';
-import type { FileItem } from '@/types';
+import type { StoredFile } from '@/types';
 
 interface Props {
   open: boolean;
-  folderId: string | null;
+  /** Folder to upload into, or null for the root. */
+  folderId: number | null;
+  /** Name of that folder, shown so the destination is obvious. */
+  folderName?: string;
   onClose: () => void;
-  onUploaded: (file: FileItem) => void;
+  onUploaded: (file: StoredFile) => void;
 }
 
-export default function UploadModal({ open, folderId, onClose, onUploaded }: Props) {
+export default function UploadModal({
+  open,
+  folderId,
+  folderName,
+  onClose,
+  onUploaded,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<File | null>(null);
   const [progress, setProgress] = useState(0);
@@ -24,6 +33,13 @@ export default function UploadModal({ open, folderId, onClose, onUploaded }: Pro
     setProgress(0);
     setBusy(false);
     setError('');
+    if (inputRef.current) inputRef.current.value = '';
+  }
+
+  function handleClose() {
+    if (busy) return;
+    reset();
+    onClose();
   }
 
   async function handleUpload() {
@@ -31,8 +47,8 @@ export default function UploadModal({ open, folderId, onClose, onUploaded }: Pro
     setBusy(true);
     setError('');
     try {
-      const file = await uploadFile(selected, folderId, setProgress);
-      onUploaded(file);
+      const uploaded = await uploadFile(selected, folderId, setProgress);
+      onUploaded(uploaded);
       reset();
       onClose();
     } catch (err) {
@@ -42,7 +58,7 @@ export default function UploadModal({ open, folderId, onClose, onUploaded }: Pro
   }
 
   return (
-    <Modal open={open} title="Upload a file" onClose={() => { reset(); onClose(); }}>
+    <Modal open={open} title="Upload a file" onClose={handleClose}>
       <div className="space-y-4">
         <button
           type="button"
@@ -50,7 +66,7 @@ export default function UploadModal({ open, folderId, onClose, onUploaded }: Pro
           className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center hover:border-blue-400 hover:bg-blue-50/50"
         >
           <span className="text-3xl">📤</span>
-          <span className="text-sm font-medium text-slate-700">
+          <span className="text-sm font-medium break-all text-slate-700">
             {selected ? selected.name : 'Click to choose a file'}
           </span>
           {selected && (
@@ -64,6 +80,10 @@ export default function UploadModal({ open, folderId, onClose, onUploaded }: Pro
           onChange={(e) => setSelected(e.target.files?.[0] ?? null)}
         />
 
+        <p className="text-xs text-slate-500">
+          Uploading to {folderName ? <strong>{folderName}</strong> : 'the root folder'}.
+        </p>
+
         {busy && (
           <div className="h-2 w-full overflow-hidden rounded-full bg-slate-200">
             <div
@@ -76,7 +96,7 @@ export default function UploadModal({ open, folderId, onClose, onUploaded }: Pro
         {error && <p className="text-sm text-red-600">{error}</p>}
 
         <div className="flex justify-end gap-2">
-          <button className="btn-secondary" onClick={() => { reset(); onClose(); }}>
+          <button className="btn-secondary" onClick={handleClose} disabled={busy}>
             Cancel
           </button>
           <button className="btn-primary" disabled={!selected || busy} onClick={handleUpload}>

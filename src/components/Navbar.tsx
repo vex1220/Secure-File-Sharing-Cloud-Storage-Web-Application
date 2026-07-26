@@ -6,10 +6,21 @@ import RoleBadge from '@/components/RoleBadge';
 const links = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/files', label: 'My Files', end: false },
+  { to: '/activity', label: 'Activity', end: false },
 ];
 
+const linkClass = (isActive: boolean, accent = 'blue') =>
+  cn(
+    'rounded-lg px-3 py-2 text-sm font-medium',
+    isActive
+      ? accent === 'purple'
+        ? 'bg-purple-50 text-purple-700'
+        : 'bg-blue-50 text-blue-700'
+      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+  );
+
 export default function Navbar() {
-  const { user, logout, hasRole } = useAuth();
+  const { user, logout, isSystemAdmin, displayName } = useAuth();
   const navigate = useNavigate();
 
   function handleLogout() {
@@ -31,31 +42,14 @@ export default function Navbar() {
               key={link.to}
               to={link.to}
               end={link.end}
-              className={({ isActive }) =>
-                cn(
-                  'rounded-lg px-3 py-2 text-sm font-medium',
-                  isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-                )
-              }
+              className={({ isActive }) => linkClass(isActive)}
             >
               {link.label}
             </NavLink>
           ))}
-          {/* Admin-only link — demonstrates role-based navigation. */}
-          {hasRole('ADMIN') && (
-            <NavLink
-              to="/admin"
-              className={({ isActive }) =>
-                cn(
-                  'rounded-lg px-3 py-2 text-sm font-medium',
-                  isActive
-                    ? 'bg-purple-50 text-purple-700'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
-                )
-              }
-            >
+          {/* Admin-only link — the route is gated as well. */}
+          {isSystemAdmin && (
+            <NavLink to="/admin" className={({ isActive }) => linkClass(isActive, 'purple')}>
               Admin
             </NavLink>
           )}
@@ -64,7 +58,7 @@ export default function Navbar() {
         <div className="ml-auto flex items-center gap-3">
           {user && (
             <div className="hidden items-center gap-2 sm:flex">
-              <span className="text-sm text-slate-600">{user.name}</span>
+              <span className="text-sm text-slate-600">{displayName}</span>
               <RoleBadge role={user.role} />
             </div>
           )}

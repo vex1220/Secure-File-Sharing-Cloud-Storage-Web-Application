@@ -1,19 +1,20 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import Spinner from '@/components/Spinner';
-import type { Role } from '@/types';
+import type { RoleName } from '@/types';
 
 interface Props {
-  /** If set, the user must have this role to view the nested routes. */
-  role?: Role;
+  /** When set, the user's role must be one of these to view the nested routes. */
+  roles?: RoleName[];
 }
 
 /**
  * Gate for authenticated routes. Renders nested routes via <Outlet/> when the
- * user is allowed; otherwise redirects. Supports optional role-based access.
+ * user is allowed; otherwise redirects. Client-side role checks are a UX
+ * nicety, not the security boundary — every endpoint re-checks server-side.
  */
-export default function ProtectedRoute({ role }: Props) {
-  const { user, loading } = useAuth();
+export default function ProtectedRoute({ roles }: Props) {
+  const { user, loading, role } = useAuth();
 
   if (loading) {
     return (
@@ -24,7 +25,7 @@ export default function ProtectedRoute({ role }: Props) {
   }
 
   if (!user) return <Navigate to="/login" replace />;
-  if (role && user.role !== role) return <Navigate to="/" replace />;
+  if (roles && (!role || !roles.includes(role))) return <Navigate to="/" replace />;
 
   return <Outlet />;
 }

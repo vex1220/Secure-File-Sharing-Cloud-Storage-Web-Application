@@ -1,14 +1,16 @@
 import { useEffect, type ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 interface Props {
   open: boolean;
   title: string;
   onClose: () => void;
   children: ReactNode;
+  size?: 'md' | 'lg';
 }
 
 /** Accessible, click-outside-to-close modal dialog. */
-export default function Modal({ open, title, onClose, children }: Props) {
+export default function Modal({ open, title, onClose, children, size = 'md' }: Props) {
   // Close on Escape.
   useEffect(() => {
     if (!open) return;
@@ -21,22 +23,22 @@ export default function Modal({ open, title, onClose, children }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
       <div
-        className="card w-full max-w-md p-6"
+        className={cn('card w-full p-6', size === 'lg' ? 'max-w-lg' : 'max-w-md')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          <h2 className="truncate pr-2 text-lg font-semibold text-slate-900">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="shrink-0 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
             ✕
           </button>
