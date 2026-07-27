@@ -1,4 +1,5 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { buildSecurityHeaders } from '@/lib/security';
 
 /**
  * Axios instance pointed at the Django REST backend.
@@ -66,6 +67,12 @@ function endSession(): void {
 apiClient.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  const securityHeaders = buildSecurityHeaders();
+  Object.entries(securityHeaders).forEach(([key, value]) => {
+    config.headers[key] = value;
+  });
+
   return config;
 });
 
