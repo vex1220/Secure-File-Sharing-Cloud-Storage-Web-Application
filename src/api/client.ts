@@ -4,9 +4,9 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
  * Axios instance pointed at the Django REST backend.
  *
  * In development `VITE_API_BASE_URL` stays as `/api`, which Vite proxies to
- * http://localhost:8000 (see vite.config.ts) — that keeps the browser on a
- * single origin so CORS never enters the picture. In production set it to the
- * deployed API root, e.g. https://your-app.railway.app/api
+ * `VITE_DEV_PROXY_TARGET` (see vite.config.ts) — that keeps the browser on a
+ * single origin so CORS never enters the picture. Production builds read
+ * `.env.production`, which points at the deployed Railway API root.
  *
  * Every backend route ends in a trailing slash. Django's URL resolver will not
  * match without it, and APPEND_SLASH cannot rescue a POST/PATCH/DELETE, so the

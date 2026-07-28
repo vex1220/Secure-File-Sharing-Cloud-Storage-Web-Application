@@ -59,18 +59,38 @@ u.role = Role.objects.get(name='admin'); u.save()"
 
 ## Backend connection
 
-`VITE_API_BASE_URL` defaults to `/api`, which `vite.config.ts` proxies to
-`http://localhost:8000`. Because the browser only ever talks to its own origin
-in development, **CORS never comes into play** — there is no need to add port
-5173 to the backend's `CORS_ALLOWED_ORIGINS` while developing locally.
+Two env files, picked automatically by the mode Vite is running in:
 
-For a deployed build, point it at the real API root instead:
+| File | Used by | `VITE_API_BASE_URL` |
+| :--- | :--- | :--- |
+| `.env` | `npm run dev` | `/api` → proxied to `VITE_DEV_PROXY_TARGET` |
+| `.env.production` | `npm run build`, `npm run preview` | `https://backend-production-9f759.up.railway.app/api` |
+
+**Development.** The browser only ever talks to its own origin, so **CORS never
+comes into play** — there is no need to add port 5173 to the backend's
+`CORS_ALLOWED_ORIGINS`. `VITE_DEV_PROXY_TARGET` decides where the proxy
+forwards to, so you can develop against either backend:
 
 ```env
-VITE_API_BASE_URL=https://your-app.railway.app/api
+VITE_DEV_PROXY_TARGET=http://localhost:8000                             # local Django
+VITE_DEV_PROXY_TARGET=https://backend-production-9f759.up.railway.app   # deployed
 ```
 
-and add the frontend's origin to `CORS_ALLOWED_ORIGINS` on the backend.
+**Production.** A built bundle has no proxy, so the browser calls Railway
+directly and CORS does apply — the deployed frontend's origin has to be in the
+backend's `CORS_ALLOWED_ORIGINS`.
+
+Use the **public** `*.up.railway.app` domain, not `backend.railway.internal`.
+The internal hostname resolves only inside Railway's private network; a browser
+cannot reach it, whichever service the frontend is deployed from.
+
+> **Never put a database URL in this repo.** Vite inlines every `VITE_`
+> variable into the JavaScript it ships to the browser, so a Postgres
+> connection string in `.env` would be published verbatim to anyone who opens
+> the site. Postgres also speaks a TCP wire protocol a browser cannot talk, and
+> `postgres.railway.internal` is private-network-only. Database credentials
+> belong to the Django service's `DATABASE_URL` variable, and reach this app
+> only through the REST API.
 
 ### Endpoints consumed
 
