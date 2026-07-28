@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import Modal from '@/components/Modal';
 import Spinner from '@/components/Spinner';
 import { uploadFile } from '@/api/files';
+import { recordAuditEvent, validateUploadFile } from '@/lib/security';
 import { formatBytes, getErrorMessage } from '@/lib/utils';
 import type { StoredFile } from '@/types';
 
@@ -44,10 +45,19 @@ export default function UploadModal({
 
   async function handleUpload() {
     if (!selected) return;
+
+    const validation = validateUploadFile(selected);
+    if (!validation.ok) {
+      recordAuditEvent('validation', 'warning', 'Upload blocked by client validation', validation.error);
+      setError(validation.error ?? 'Upload validation failed');
+      return;
+    }
+
     setBusy(true);
     setError('');
     try {
       const uploaded = await uploadFile(selected, folderId, setProgress);
+      recordAuditEvent('upload', 'info', 'Client-side encryption and validation completed', selected.name);
       onUploaded(uploaded);
       reset();
       onClose();
@@ -82,6 +92,9 @@ export default function UploadModal({
 
         <p className="text-xs text-slate-500">
           Uploading to {folderName ? <strong>{folderName}</strong> : 'the root folder'}.
+        </p>
+        <p className="text-xs text-blue-700">
+          Files are validated, sanitized, and encrypted before they leave the browser.
         </p>
 
         {busy && (

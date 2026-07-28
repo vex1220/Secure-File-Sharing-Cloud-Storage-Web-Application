@@ -7,6 +7,7 @@ import {
   revokePermission,
   shareFile,
 } from '@/api/permissions';
+import { recordAuditEvent } from '@/lib/security';
 import { getErrorMessage } from '@/lib/utils';
 import { PERMISSION_LEVELS, type FilePermission, type PermissionLevel, type StoredFile } from '@/types';
 
@@ -71,12 +72,20 @@ export default function ShareModal({ file, onClose }: Props) {
     event.preventDefault();
     if (!file) return;
 
+    const trimmedUsername = username.trim();
+    if (!/^[A-Za-z0-9_.-]{3,32}$/.test(trimmedUsername)) {
+      recordAuditEvent('validation', 'warning', 'Share rejected due to invalid recipient name', trimmedUsername);
+      setError('Usernames must be 3-32 characters and use only letters, numbers, periods, underscores, or hyphens.');
+      return;
+    }
+
     setBusy(true);
     setError('');
     setNotice('');
     try {
-      await shareFile(file.id, username.trim(), level);
-      setNotice(`Shared with ${username.trim()}.`);
+      await shareFile(file.id, trimmedUsername, level);
+      recordAuditEvent('share', 'info', `Share permission granted to ${trimmedUsername}`, file.original_name);
+      setNotice(`Shared with ${trimmedUsername}.`);
       setUsername('');
       await load(file.id);
     } catch (err) {

@@ -4,8 +4,10 @@ import { useAuth } from '@/context/AuthContext';
 import { listFiles } from '@/api/files';
 import { listFolders } from '@/api/folders';
 import { listMyLogs } from '@/api/activity';
-import { formatBytes, formatDate, formatDateTime, getErrorMessage, roleLabel } from '@/lib/utils';
+import SecurityAuditPanel from '@/components/SecurityAuditPanel';
 import Spinner from '@/components/Spinner';
+import { getAuditEntries } from '@/lib/security';
+import { formatBytes, formatDate, formatDateTime, getErrorMessage, roleLabel } from '@/lib/utils';
 import type { ActivityLog, StoredFile } from '@/types';
 
 export default function DashboardPage() {
@@ -15,6 +17,7 @@ export default function DashboardPage() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [auditCount, setAuditCount] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -27,6 +30,7 @@ export default function DashboardPage() {
         setFiles(fileList);
         setFolderCount(folderList.length);
         setLogs(logList);
+        setAuditCount(getAuditEntries().length);
       } catch (err) {
         setError(getErrorMessage(err));
       } finally {
@@ -34,6 +38,13 @@ export default function DashboardPage() {
       }
     }
     load();
+  }, []);
+
+  useEffect(() => {
+    const updateCount = () => setAuditCount(getAuditEntries().length);
+    updateCount();
+    window.addEventListener('sfs:audit-updated', updateCount);
+    return () => window.removeEventListener('sfs:audit-updated', updateCount);
   }, []);
 
   const username = user?.username ?? '';
@@ -80,6 +91,31 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
+
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="card p-5">
+              <div className="text-2xl">🔐</div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">{auditCount}</div>
+              <div className="text-sm text-slate-500">Security events</div>
+            </div>
+            <div className="card p-5">
+              <div className="text-2xl">🗂️</div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">{owned.length}</div>
+              <div className="text-sm text-slate-500">My files</div>
+            </div>
+            <div className="card p-5">
+              <div className="text-2xl">💾</div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">{formatBytes(storageUsed)}</div>
+              <div className="text-sm text-slate-500">Storage used</div>
+            </div>
+            <div className="card p-5">
+              <div className="text-2xl">👥</div>
+              <div className="mt-2 text-2xl font-bold text-slate-900">{sharedWithMe.length}</div>
+              <div className="text-sm text-slate-500">Shared with me</div>
+            </div>
+          </div>
+
+          <SecurityAuditPanel />
 
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="card">

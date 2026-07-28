@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { apiClient } from '@/api/client';
+import { buildEncryptedUpload, decryptBlob, hashFile, recordAuditEvent, recordFileEvent, sanitizeFileName, scheduleBackgroundTask, validateUploadFile } from '@/lib/security';
 import type { StoredFile } from '@/types';
 
 /**
@@ -31,8 +32,14 @@ export async function uploadFile(
   folderId: number | null = null,
   onProgress?: (percent: number) => void,
 ): Promise<StoredFile> {
+  const validation = validateUploadFile(file);
+  if (!validation.ok) {
+    throw new Error(validation.error ?? 'File validation failed');
+  }
+
+  const encryptedUpload = await buildEncryptedUpload(file);
   const form = new FormData();
-  form.append('file', file);
+  form.append('file', encryptedUpload.file);
   if (folderId !== null) form.append('folder', String(folderId));
 
   const { data } = await apiClient.post<StoredFile>('/storage/files/upload/', form, {
@@ -42,6 +49,13 @@ export async function uploadFile(
       }
     },
   });
+
+  recordFileEvent(data, 'upload', 'Encrypted upload completed');
+  scheduleBackgroundTask(`integrity-${sanitizeFileName(file.name)}`, async () => {
+    await hashFile(encryptedUpload.file);
+    recordAuditEvent('background', 'info', `Integrity fingerprint captured for ${sanitizeFileName(file.name)}`);
+  });
+
   return data;
 }
 
@@ -56,8 +70,11 @@ export async function downloadFile(file: StoredFile): Promise<void> {
     const { data } = await apiClient.get<Blob>(`/storage/files/${file.id}/download/`, {
       responseType: 'blob',
     });
-    saveBlob(data, file.original_name);
+    const decrypted = await decryptBlob(data);
+    saveBlob(decrypted, sanitizeFileName(file.original_name));
+    recordFileEvent(file, 'download', 'Encrypted download completed');
   } catch (err) {
+    recordAuditEvent('download', 'warning', 'Secure download failed', err instanceof Error ? err.message : String(err));
     throw await readBlobError(err);
   }
 }
